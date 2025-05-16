@@ -5,6 +5,11 @@ import re
 from werkzeug.utils import secure_filename
 from datetime import datetime
 import shutil
+import requests
+
+
+TELEGRAM_BOT_TOKEN = "7804622358:AAHV9cTE63_si10Q_GQX2a4Imb9RFO88dCE"
+TELEGRAM_CHAT_ID = "7246953653"
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 4 * 1024 * 1024  # 4MB limit
@@ -39,6 +44,29 @@ def timestamp_to_date_filter(ts):
     except Exception:
         return 'Invalid timestamp'
     
+    
+def send_telegram_alert(filename):
+    try:
+        timestamp_str = filename.split('_')[1].split('.')[0]
+        timestamp = int(timestamp_str)
+        date_str = datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S')
+        
+        message = (
+            f"🚨 INTRUDER ALERT!\n"
+            f"Time: {date_str}\n"
+            f"Device IP: {request.remote_addr}"
+        )
+        
+        url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+        data = {
+            "chat_id": TELEGRAM_CHAT_ID,
+            "text": message
+        }
+        requests.post(url, data=data)
+    except Exception as e:
+        app.logger.error(f"Telegram alert failed: {str(e)}")
+
+    
 def enforce_image_limit():
     """Keep only the most recent MAX_IMAGES files, delete the rest."""
     files = [f for f in os.listdir(app.config['UPLOAD_FOLDER']) if f.startswith('capture_')]
@@ -68,6 +96,7 @@ def upload_image():
         try:
             file.save(save_path)
             enforce_image_limit()
+            send_telegram_alert(filename)
             return f'Image {filename} saved', 200
         except Exception as e:
             app.logger.error(f"Save error: {str(e)}")
