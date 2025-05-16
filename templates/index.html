@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>ESP32-CAM Security Feed</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <h1>Laser Security System Gallery</h1>
+    <button class="refresh-button" onclick="refreshGallery()">
+      Refresh Gallery
+    </button>
+    <p>Last refreshed at: <span id="lastRefresh">--:--:--</span></p>
+    <p>Storage used: {{ used_space }} MB / {{ total_space }} MB</p>
+
+    <div class="gallery">
+      {% for image in images %}
+      <div class="image-container">
+        <img
+          src="/uploads/{{ image }}"
+          alt="{{ image }}"
+          onclick="openModal(this.src)"
+        />
+        <div class="timestamp">{{ image[:-4] | timestamp_to_date }}</div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <div id="modal" class="modal" onclick="closeModal()">
+      <span class="close">&times;</span>
+      <img class="modal-content" id="modalImg" />
+    </div>
+
+    <script>
+      function openModal(src) {
+        document.getElementById("modal").style.display = "block";
+        document.getElementById("modalImg").src = src;
+      }
+      function closeModal() {
+        document.getElementById("modal").style.display = "none";
+      }
+
+      window.addEventListener("DOMContentLoaded", () => {
+        refreshGallery();
+        setInterval(refreshGallery, 10000);
+      });
+
+      async function refreshGallery() {
+        console.log("🔄 Refreshing gallery…");
+        try {
+          const resp = await fetch("/gallery?t=" + Date.now());
+          const html = await resp.text();
+          document.querySelector(".gallery").innerHTML = html;
+
+          // Re-bind image click handlers
+          document.querySelectorAll(".image-container img").forEach((img) => {
+            img.onclick = () => openModal(img.src);
+          });
+
+          document.getElementById("lastRefresh").textContent =
+            new Date().toLocaleTimeString();
+        } catch (e) {
+          console.error("Gallery refresh failed:", e);
+        }
+      }
+    </script>
+  </body>
+</html>

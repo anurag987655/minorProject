@@ -1,0 +1,12 @@
+{% if images %}
+  {% for image in images %}
+    <div class="image-container">
+      <img src="/uploads/{{ image }}" alt="{{ image }}">
+      <div class="timestamp">
+        {{ image[:-4] | timestamp_to_date }}
+      </div>
+    </div>
+  {% endfor %}
+{% else %}
+  <p style="color:#888; grid-column:1/-1;">No images to display.</p>
+{% endif %}
