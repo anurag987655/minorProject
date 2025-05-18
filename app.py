@@ -6,6 +6,7 @@ from werkzeug.utils import secure_filename
 from datetime import datetime
 import shutil
 import requests
+from recognizer import recognize_face
 
 
 TELEGRAM_BOT_TOKEN = "7804622358:AAHV9cTE63_si10Q_GQX2a4Imb9RFO88dCE"
@@ -47,16 +48,28 @@ def timestamp_to_date_filter(ts):
     
 def send_telegram_alert(filename):
     try:
+        image_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        identity = recognize_face(image_path)
+
         timestamp_str = filename.split('_')[1].split('.')[0]
         timestamp = int(timestamp_str)
         date_str = datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S')
+
+        if identity == "Unknown":
+            alert_type = "🚨 INTRUDER ALERT!"
+        elif identity == "No face detected":
+            alert_type = "⚠️ No Face Detected"
+        else:
+            alert_type = f"✅ Owner Detected: {identity}"
         
+
+
         message = (
-            f"🚨 INTRUDER ALERT!\n"
+            f"{alert_type}\n"
             f"Time: {date_str}\n"
             f"Device IP: {request.remote_addr}"
         )
-        
+
         url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
         data = {
             "chat_id": TELEGRAM_CHAT_ID,
@@ -128,7 +141,7 @@ def index():
         images = []
 
     used_mb = get_upload_folder_size_mb()
-    total_mb = 20  # Set this as your allowed limit
+    total_mb = 20  
 
     return render_template(
         'index.html',
@@ -149,12 +162,10 @@ def serve_image(filename):
 def gallery_partial():
     folder = app.config['UPLOAD_FOLDER']
     try:
-        # List only files that start with “capture_” and end with an image extension
         files = [
             f for f in os.listdir(folder)
             if f.startswith('capture_') and f.lower().endswith(('.jpg', '.jpeg', '.png'))
         ]
-        # Sort newest-first by the timestamp in the filename
         images = sorted(
             files,
             key=lambda x: int(x.split('_')[1].split('.')[0]),
